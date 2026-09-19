@@ -48,6 +48,10 @@ def filter_accurate_matches(query, matches, tmdb_data):
                 # (e.g., TMDB expects 2023, but file says "Blast 2026")
                 score -= 100
                 
+        # 3. HUGE boost for Tamil movies (User's highest priority)
+        if 'tamil' in file_name:
+            score += 25
+            
         # If the file passed the checks (score > 0) or if we had no strict criteria, keep it
         if score > 0 or (score == 0 and not expected_year):
             scored_matches.append({'movie': movie, 'score': score})
