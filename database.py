@@ -14,20 +14,44 @@ async def init_db():
     logger.info("MongoDB initialized.")
 import re
 
+import difflib
+
+# Memory cache for fuzzy searching
+_movie_cache = []
+_movie_cache_time = 0
+
 async def search_movies_db(query):
-    # Extract alphanumeric words from the query (like CineSearch bot does)
+    # Try exact match first
     words = re.findall(r'[a-zA-Z0-9]+', query)
     if not words:
         return []
         
     conditions = []
     for word in words:
-        # Added \b at both start AND end to strictly isolate the word
         conditions.append({"file_name": {"$regex": rf"\b{word}\b", "$options": "i"}})
         
-    # Find files containing ALL words
     cursor = movies_col.find({"$and": conditions}).limit(15)
-    return await cursor.to_list(length=15)
+    results = await cursor.to_list(length=15)
+    
+    # If no results found, use difflib to find spelling mistakes!
+    if not results:
+        global _movie_cache, _movie_cache_time
+        import time
+        # Refresh cache every hour
+        if not _movie_cache or (time.time() - _movie_cache_time) > 3600:
+            cursor = movies_col.find({}, {"file_name": 1})
+            _movie_cache = [doc['file_name'] async for doc in cursor if 'file_name' in doc]
+            _movie_cache_time = time.time()
+            
+        # Get closest string matches
+        # Using cutoff=0.3 to allow partial matches (e.g. 'viswanath' vs 'Vishwanath and Sons...')
+        close_names = difflib.get_close_matches(query, _movie_cache, n=10, cutoff=0.3)
+        
+        if close_names:
+            cursor = movies_col.find({"file_name": {"$in": close_names}}).limit(10)
+            results = await cursor.to_list(length=10)
+            
+    return results
 
 async def add_to_queue(movie_name):
     # Check if already pending
