@@ -85,6 +85,7 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
     # Send all matching files
     watermark = (f"\n\n"
                  f"╭━━━━━━━━━━━━━━━━━━━\n"
+                 f"┣ 👤 **Req By :** {user_mention}\n"
                  f"┣ 🤖 **Bot :** @MovieVaultFilter_bot\n"
                  f"┣ 📢 **Channel :** [Join Our Channel](https://t.me/+PNxLbUANb6NmZDhl)\n"
                  f"╰━━━━━━━━━━━━━━━━━━━")
