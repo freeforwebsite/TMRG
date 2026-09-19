@@ -11,7 +11,7 @@ SESSION_STRING = os.getenv("SESSION_STRING", "")
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
 TARGET_GROUP_ID = int(os.getenv("TARGET_GROUP_ID", "0"))
 SCRAPER_CHANNEL_ID = int(os.getenv("SCRAPER_CHANNEL_ID", "0"))
-DATABASE_CHANNEL_ID = int(os.getenv("DATABASE_CHANNEL_ID", "0"))
+DATABASE_CHANNEL_IDS = [int(x.strip()) for x in os.getenv("DATABASE_CHANNEL_ID", "0").split(",") if x.strip() and x.strip() != "0"]
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
 WATERMARK_ID = os.getenv("WATERMARK_ID", "")

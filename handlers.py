@@ -2,7 +2,7 @@ import asyncio
 import time
 from telethon import events
 from telethon.errors import FloodWaitError
-from config import TARGET_GROUP_ID, DATABASE_CHANNEL_ID, logger, WATERMARK_ID
+from config import TARGET_GROUP_ID, DATABASE_CHANNEL_IDS, logger, WATERMARK_ID
 from tmdb import search_tmdb
 from database import add_to_queue, check_queue_status, increment_stat, search_movies_db
 
@@ -96,15 +96,18 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
             file_name = movie.get('file_name', 'Unknown')
             file_id = movie.get('file_id')
             
-            if DATABASE_CHANNEL_ID:
+            if DATABASE_CHANNEL_IDS:
                 found = False
-                async for msg in event.client.iter_messages(DATABASE_CHANNEL_ID, search=file_name, limit=1):
-                    if msg.media:
-                        await event.client.send_file(event.chat_id, msg.media, caption=f"🎬 `{file_name}`{watermark}")
-                        found = True
+                for channel_id in DATABASE_CHANNEL_IDS:
+                    async for msg in event.client.iter_messages(channel_id, search=file_name, limit=1):
+                        if msg.media:
+                            await event.client.send_file(event.chat_id, msg.media, caption=f"🎬 `{file_name}`{watermark}")
+                            found = True
+                            break
+                    if found:
                         break
                 if not found:
-                    await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be found in the vault.")
+                    await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be found in the vault(s).")
             elif file_id:
                 try:
                     await event.client.send_file(event.chat_id, file_id, caption=f"🎬 `{file_name}`{watermark}")

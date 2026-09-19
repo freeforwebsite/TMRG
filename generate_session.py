@@ -2,8 +2,13 @@ from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
 import os
+import asyncio
 
 load_dotenv()
+
+# Fix for Python 3.14 asyncio loop issue
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
