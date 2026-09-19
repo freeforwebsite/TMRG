@@ -2,7 +2,7 @@ import asyncio
 import time
 from telethon import events
 from telethon.errors import FloodWaitError
-from config import TARGET_GROUP_ID, DATABASE_CHANNEL_ID, logger
+from config import TARGET_GROUP_ID, DATABASE_CHANNEL_ID, logger, WATERMARK_ID
 from tmdb import search_tmdb
 from database import add_to_queue, check_queue_status, increment_stat, search_movies_db
 
@@ -83,6 +83,8 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
     await increment_stat("total_sent")
 
     # Send all matching files
+    watermark = f"\n\n🤖 **Bot :** {WATERMARK_ID}" if WATERMARK_ID else ""
+    
     for movie in matches[:10]:
         try:
             file_name = movie.get('file_name', 'Unknown')
@@ -92,24 +94,24 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
                 found = False
                 async for msg in event.client.iter_messages(DATABASE_CHANNEL_ID, search=file_name, limit=1):
                     if msg.media:
-                        await event.client.send_message(event.chat_id, file=msg.media, message=f"📁 `{file_name}`")
+                        await event.client.send_message(event.chat_id, file=msg.media, message=f"🎬 `{file_name}`{watermark}")
                         found = True
                         break
                 if not found:
                     await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be found in the vault.")
             elif file_id:
                 try:
-                    await event.client.send_message(event.chat_id, file=file_id, message=f"📁 `{file_name}`")
+                    await event.client.send_message(event.chat_id, file=file_id, message=f"🎬 `{file_name}`{watermark}")
                 except Exception as file_e:
                     logger.error(f"Could not send by file_id: {file_e}")
-                    await event.client.send_message(event.chat_id, message=f"⚠️ Unable to send `{file_name}` directly via Userbot due to Telegram file_id restrictions.")
+                    await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be sent directly via Userbot.")
             else:
                 msg_id = movie.get('message_id')
                 chat_id = movie.get('chat_id')
                 if msg_id and chat_id:
                     msg = await event.client.get_messages(chat_id, ids=msg_id)
                     if msg:
-                        await event.client.send_message(event.chat_id, file=msg.media, message=f"📁 `{file_name}`")
+                        await event.client.send_message(event.chat_id, file=msg.media, message=f"🎬 `{file_name}`{watermark}")
         except Exception as e:
             logger.error(f"Failed to send movie file: {e}")
 

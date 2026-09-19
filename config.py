@@ -14,6 +14,7 @@ SCRAPER_CHANNEL_ID = int(os.getenv("SCRAPER_CHANNEL_ID", "0"))
 DATABASE_CHANNEL_ID = int(os.getenv("DATABASE_CHANNEL_ID", "0"))
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
+WATERMARK_ID = os.getenv("WATERMARK_ID", "")
 
 if not API_ID or not API_HASH:
     raise ValueError("API_ID and API_HASH must be set in .env")
