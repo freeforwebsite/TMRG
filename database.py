@@ -7,7 +7,7 @@ db_movies = client['telegram_bot']
 movies_col = db_movies['movies']
 
 db_scraper = client['cinesearch_db']
-queue_col = db_scraper['scrape_queue_v2']
+queue_col = db_scraper['scrape_queue']
 
 async def init_db():
     await movies_col.create_index([("file_name", 1)])
