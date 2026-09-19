@@ -5,7 +5,7 @@ from telethon.errors import FloodWaitError
 from config import TARGET_GROUP_ID, DATABASE_CHANNEL_ID, logger
 from matcher import search_movies
 from tmdb import search_tmdb
-from database import add_to_queue, check_queue_status
+from database import add_to_queue, check_queue_status, increment_stat
 
 user_cooldowns = {}
 COOLDOWN_SECONDS = 5
@@ -26,6 +26,8 @@ async def send_movie_results(matches, event, user_id, query):
         await event.client.send_message(event.chat_id, message=caption, file=tmdb_data['poster_url'])
     else:
         await event.client.send_message(event.chat_id, message=f"🎬 Found files for: **{query}**\n👤 Requested by: {user_mention}")
+
+    await increment_stat("total_sent")
 
     # Send all matching files
     for movie in matches[:10]:
@@ -75,6 +77,7 @@ async def watch_queue_and_send(query, event, user_id):
             return
         elif status == 'failed':
             logger.info(f"Scraper failed for {query}")
+            await increment_stat("total_failed")
             return
 
 async def handle_movie_request(event):
@@ -101,6 +104,7 @@ async def handle_movie_request(event):
         return
         
     logger.info(f"Processing request from {user_id}: {query}")
+    await increment_stat("total_requested")
     
     try:
         matches = await search_movies(query)

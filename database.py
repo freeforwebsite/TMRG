@@ -35,3 +35,16 @@ async def check_queue_status(movie_name):
     if doc:
         return doc.get("status")
     return None
+
+stats_col = db_movies['bot_stats']
+
+async def increment_stat(field):
+    await stats_col.update_one(
+        {"_id": "global_stats"},
+        {"$inc": {field: 1}},
+        upsert=True
+    )
+
+async def get_bot_stats():
+    stats = await stats_col.find_one({"_id": "global_stats"})
+    return stats or {"total_requested": 0, "total_sent": 0, "total_failed": 0}

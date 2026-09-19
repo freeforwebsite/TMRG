@@ -5,7 +5,7 @@ from telethon.sessions import StringSession
 from config import API_ID, API_HASH, SESSION_NAME, SESSION_STRING, logger
 from handlers import register_user_handlers
 from admin import register_admin_handlers
-from database import init_db, movies_col, queue_col
+from database import init_db, movies_col, queue_col, get_bot_stats
 
 async def dummy_web_server(reader, writer):
     request = await reader.read(1024)
@@ -15,6 +15,11 @@ async def dummy_web_server(reader, writer):
         pending_count = await queue_col.count_documents({"status": "pending"})
         completed_count = await queue_col.count_documents({"status": "completed"})
         
+        bot_stats = await get_bot_stats()
+        total_requested = bot_stats.get("total_requested", 0)
+        total_sent = bot_stats.get("total_sent", 0)
+        total_failed = bot_stats.get("total_failed", 0)
+        
         html = f"""<!DOCTYPE html>
         <html>
         <head>
@@ -23,12 +28,13 @@ async def dummy_web_server(reader, writer):
                 body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; text-align: center; padding: 40px; margin: 0; }}
                 h1 {{ color: #38bdf8; font-size: 2.5em; margin-bottom: 5px; }}
                 p {{ color: #94a3b8; font-size: 1.1em; margin-bottom: 40px; }}
-                .container {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; }}
+                .container {{ display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; }}
                 .card {{ background: #1e293b; padding: 30px; border-radius: 15px; width: 220px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); border-top: 4px solid #38bdf8; transition: transform 0.2s; }}
                 .card:hover {{ transform: translateY(-5px); }}
                 .stat {{ font-size: 3em; font-weight: bold; margin: 15px 0; }}
                 .label {{ color: #cbd5e1; font-size: 1.1em; text-transform: uppercase; letter-spacing: 1px; }}
                 .pulse {{ display: inline-block; width: 12px; height: 12px; background-color: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e; margin-right: 10px; }}
+                hr {{ border-color: #334155; margin: 40px 0; }}
             </style>
         </head>
         <body>
@@ -47,9 +53,27 @@ async def dummy_web_server(reader, writer):
                     <div class="label" style="font-size: 0.8em;">Waiting for AI Scraper</div>
                 </div>
                 <div class="card" style="border-top-color: #10b981;">
-                    <div class="label">Completed</div>
+                    <div class="label">Scraped Movies</div>
                     <div class="stat" style="color: #6ee7b7;">{completed_count:,}</div>
                     <div class="label" style="font-size: 0.8em;">Successfully Scraped</div>
+                </div>
+            </div>
+            
+            <hr>
+            <h2 style="color: #94a3b8; margin-bottom: 20px;">Group Request Statistics</h2>
+            
+            <div class="container">
+                <div class="card" style="border-top-color: #8b5cf6; padding: 20px; width: 180px;">
+                    <div class="label">Total Requested</div>
+                    <div class="stat" style="font-size: 2.5em; color: #c4b5fd;">{total_requested:,}</div>
+                </div>
+                <div class="card" style="border-top-color: #22c55e; padding: 20px; width: 180px;">
+                    <div class="label">Successfully Sent</div>
+                    <div class="stat" style="font-size: 2.5em; color: #86efac;">{total_sent:,}</div>
+                </div>
+                <div class="card" style="border-top-color: #ef4444; padding: 20px; width: 180px;">
+                    <div class="label">Failed / Timed Out</div>
+                    <div class="stat" style="font-size: 2.5em; color: #fca5a5;">{total_failed:,}</div>
                 </div>
             </div>
         </body>
