@@ -1,0 +1,37 @@
+import motor.motor_asyncio
+from config import MONGO_URI, logger
+from bson.objectid import ObjectId
+
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
+db_movies = client['telegram_bot']
+movies_col = db_movies['movies']
+
+db_scraper = client['cinesearch_db']
+queue_col = db_scraper['scrape_queue_v2']
+
+async def init_db():
+    await movies_col.create_index([("file_name", 1)])
+    logger.info("MongoDB initialized.")
+
+async def search_movies_db(query):
+    # Regex search on file_name
+    cursor = movies_col.find({"file_name": {"$regex": query, "$options": "i"}}).limit(50)
+    return await cursor.to_list(length=50)
+
+async def add_to_queue(movie_name):
+    # Check if already pending
+    exists = await queue_col.find_one({"movie_name": movie_name, "status": "pending"})
+    if not exists:
+        doc = {
+            "movie_name": movie_name,
+            "status": "pending",
+            "force": True
+        }
+        await queue_col.insert_one(doc)
+        logger.info(f"Added {movie_name} to queue_v2")
+
+async def check_queue_status(movie_name):
+    doc = await queue_col.find_one({"movie_name": movie_name}, sort=[("_id", -1)])
+    if doc:
+        return doc.get("status")
+    return None
