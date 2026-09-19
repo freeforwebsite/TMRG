@@ -120,7 +120,7 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
         except Exception as e:
             logger.error(f"Failed to send movie file: {e}")
 
-async def watch_queue_and_send(query, event, user_id):
+async def watch_queue_and_send(query, event, user_id, wait_msg=None):
     logger.info(f"Actively watching queue for: {query}")
     
     # Poll every 10 seconds for up to 15 minutes
@@ -132,6 +132,12 @@ async def watch_queue_and_send(query, event, user_id):
             logger.info(f"Scraper completed {query}! Sending to group...")
             await asyncio.sleep(2) # Give it a moment to ensure files are indexed
             
+            if wait_msg:
+                try:
+                    await wait_msg.delete()
+                except Exception:
+                    pass
+                    
             raw_matches = await search_movies_db(query)
             tmdb_data = await search_tmdb(title=query)
             
@@ -143,6 +149,11 @@ async def watch_queue_and_send(query, event, user_id):
         elif status == 'failed':
             logger.info(f"Scraper failed for {query}")
             await increment_stat("total_failed")
+            if wait_msg:
+                try:
+                    await wait_msg.edit(f"❌ Sorry, our scraper could not find **{query}** on the internet.")
+                except Exception:
+                    pass
             return
 
 async def handle_movie_request(event):
@@ -180,8 +191,15 @@ async def handle_movie_request(event):
         if matches:
             await send_movie_results(matches, event, user_id, query, tmdb_data)
         else:
+            user = await event.client.get_entity(user_id)
+            user_mention = f"[{user.first_name}](tg://user?id={user_id})"
+            wait_msg = await event.client.send_message(
+                event.chat_id,
+                message=f"⏳ {user_mention}, your movie **{query}** is not in our database!\n\n"
+                        f"Please wait a few minutes, our scraper is downloading it for you now..."
+            )
             await add_to_queue(query)
-            asyncio.create_task(watch_queue_and_send(query, event, user_id))
+            asyncio.create_task(watch_queue_and_send(query, event, user_id, wait_msg))
                     
     except FloodWaitError as e:
         logger.warning(f"Flood wait for {e.seconds} seconds")
