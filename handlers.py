@@ -3,9 +3,8 @@ import time
 from telethon import events
 from telethon.errors import FloodWaitError
 from config import TARGET_GROUP_ID, DATABASE_CHANNEL_ID, logger
-from matcher import search_movies
 from tmdb import search_tmdb
-from database import add_to_queue, check_queue_status, increment_stat
+from database import add_to_queue, check_queue_status, increment_stat, search_movies_db
 
 user_cooldowns = {}
 COOLDOWN_SECONDS = 5
@@ -71,7 +70,7 @@ async def watch_queue_and_send(query, event, user_id):
         if status == 'completed':
             logger.info(f"Scraper completed {query}! Sending to group...")
             await asyncio.sleep(2) # Give it a moment to ensure files are indexed
-            matches = await search_movies(query)
+            matches = await search_movies_db(query)
             if matches:
                 await send_movie_results(matches, event, user_id, query)
             return
@@ -107,7 +106,7 @@ async def handle_movie_request(event):
     await increment_stat("total_requested")
     
     try:
-        matches = await search_movies(query)
+        matches = await search_movies_db(query)
         
         if matches:
             await send_movie_results(matches, event, user_id, query)

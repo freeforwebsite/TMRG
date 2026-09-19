@@ -12,11 +12,22 @@ queue_col = db_scraper['scrape_queue_v2']
 async def init_db():
     await movies_col.create_index([("file_name", 1)])
     logger.info("MongoDB initialized.")
+import re
 
 async def search_movies_db(query):
-    # Regex search on file_name
-    cursor = movies_col.find({"file_name": {"$regex": query, "$options": "i"}}).limit(200)
-    return await cursor.to_list(length=200)
+    # Extract alphanumeric words from the query (like CineSearch bot does)
+    words = re.findall(r'[a-zA-Z0-9]+', query)
+    if not words:
+        return []
+        
+    conditions = []
+    for word in words:
+        # Added \b to ensure we match whole words (prevents 'leo' matching 'harmeLeon')
+        conditions.append({"file_name": {"$regex": rf"\b{word}", "$options": "i"}})
+        
+    # Find files containing ALL words
+    cursor = movies_col.find({"$and": conditions}).limit(15)
+    return await cursor.to_list(length=15)
 
 async def add_to_queue(movie_name):
     # Check if already pending
