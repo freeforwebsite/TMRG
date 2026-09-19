@@ -61,8 +61,9 @@ def filter_accurate_matches(query, matches, tmdb_data):
     return [x['movie'] for x in scored_matches]
 
 async def send_movie_results(matches, event, user_id, query, tmdb_data):
-    user = await event.client.get_entity(user_id)
-    user_mention = f"[{user.first_name}](tg://user?id={user_id})"
+    user = await event.get_sender()
+    first_name = user.first_name if user and hasattr(user, 'first_name') else "User"
+    user_mention = f"[{first_name}](tg://user?id={user_id})"
     
     if tmdb_data and tmdb_data.get('poster_url'):
         caption = (f"╭━━━ 🎬 **Search Results** ━━━\n"
@@ -191,8 +192,9 @@ async def handle_movie_request(event):
         if matches:
             await send_movie_results(matches, event, user_id, query, tmdb_data)
         else:
-            user = await event.client.get_entity(user_id)
-            user_mention = f"[{user.first_name}](tg://user?id={user_id})"
+            sender = await event.get_sender()
+            first_name = sender.first_name if sender and hasattr(sender, 'first_name') else "User"
+            user_mention = f"[{first_name}](tg://user?id={user_id})"
             wait_msg = await event.client.send_message(
                 event.chat_id,
                 message=f"⏳ {user_mention}, your movie **{query}** is not in our database!\n\n"
