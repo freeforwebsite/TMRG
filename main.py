@@ -2,7 +2,7 @@ import asyncio
 import os
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from config import API_ID, API_HASH, SESSION_NAME, SESSION_STRING, logger
+from config import API_ID, API_HASH, SESSION_NAME, SESSION_STRING, logger, log_buffer
 from handlers import register_user_handlers
 from admin import register_admin_handlers
 from database import init_db, movies_col, queue_col, get_bot_stats
@@ -75,6 +75,12 @@ async def dummy_web_server(reader, writer):
                     <div class="label">Failed / Timed Out</div>
                     <div class="stat" style="font-size: 2.5em; color: #fca5a5;">{total_failed:,}</div>
                 </div>
+            </div>
+            
+            <hr>
+            <h2 style="color: #94a3b8; margin-bottom: 20px;">Live Terminal Logs</h2>
+            <div style="background-color: #000; color: #00ff00; text-align: left; padding: 20px; border-radius: 10px; font-family: monospace; max-width: 800px; margin: 0 auto; height: 300px; overflow-y: scroll;">
+                {'<br>'.join(list(log_buffer))}
             </div>
         </body>
         </html>
