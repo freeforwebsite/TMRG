@@ -122,5 +122,10 @@ async def handle_movie_request(event):
         logger.error(f"Error handling request: {e}")
 
 def register_user_handlers(client):
+    # Debug handler to see ALL messages the bot receives
+    @client.on(events.NewMessage())
+    async def debug_handler(event):
+        logger.info(f"DEBUG - Saw message in chat {event.chat_id}: {event.raw_text}")
+
     # Removed incoming=True so it can process messages you type yourself!
     client.add_event_handler(handle_movie_request, events.NewMessage(chats=TARGET_GROUP_ID))
