@@ -8,7 +8,10 @@ from database import add_to_queue, check_queue_status, increment_stat, search_mo
 
 import re
 
+# Dictionary to store cooldowns per user (prevent spam)
 user_cooldowns = {}
+# Dictionary to store search sessions for pagination
+user_search_cache = {}
 COOLDOWN_SECONDS = 5
 
 def filter_accurate_matches(query, matches, tmdb_data):
