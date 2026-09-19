@@ -22,8 +22,8 @@ async def search_movies_db(query):
         
     conditions = []
     for word in words:
-        # Added \b to ensure we match whole words (prevents 'leo' matching 'harmeLeon')
-        conditions.append({"file_name": {"$regex": rf"\b{word}", "$options": "i"}})
+        # Added \b at both start AND end to strictly isolate the word
+        conditions.append({"file_name": {"$regex": rf"\b{word}\b", "$options": "i"}})
         
     # Find files containing ALL words
     cursor = movies_col.find({"$and": conditions}).limit(15)
