@@ -17,14 +17,20 @@ async def send_movie_results(matches, event, user_id, query):
     tmdb_data = await search_tmdb(title=query)
     
     if tmdb_data and tmdb_data.get('poster_url'):
-        caption = f"🎬 **{tmdb_data['title']}**\n" \
-                  f"⭐️ Rating: {tmdb_data['rating']}/10\n" \
-                  f"📅 Release Date: {tmdb_data['release_date']}\n" \
-                  f"📖 Plot: {tmdb_data['plot']}\n\n" \
-                  f"👤 Requested by: {user_mention}"
+        caption = (f"╭━━━ 🎬 **Search Results** ━━━\n"
+                   f"┣ 🎬 **Movie :** {tmdb_data['title']}\n"
+                   f"┣ 📁 **Total Files :** {len(matches)}\n"
+                   f"┣ ⭐️ **Rating :** {tmdb_data['rating']}/10\n"
+                   f"┣ 👤 **Requested By :** {user_mention}\n"
+                   f"╰━━━ 👇 **Your Files Are Below** 👇 ━━━")
         await event.client.send_message(event.chat_id, message=caption, file=tmdb_data['poster_url'])
     else:
-        await event.client.send_message(event.chat_id, message=f"🎬 Found files for: **{query}**\n👤 Requested by: {user_mention}")
+        caption = (f"╭━━━ 🎬 **Search Results** ━━━\n"
+                   f"┣ 🎬 **Movie :** {query}\n"
+                   f"┣ 📁 **Total Files :** {len(matches)}\n"
+                   f"┣ 👤 **Requested By :** {user_mention}\n"
+                   f"╰━━━ 👇 **Your Files Are Below** 👇 ━━━")
+        await event.client.send_message(event.chat_id, message=caption)
 
     await increment_stat("total_sent")
 
