@@ -94,33 +94,46 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
     for movie in matches[:10]:
         try:
             file_name = movie.get('file_name', 'Unknown')
+            msg_id = movie.get('message_id')
+            chat_id = movie.get('chat_id')
             file_id = movie.get('file_id')
             
-            if DATABASE_CHANNEL_IDS:
-                found = False
-                for channel_id in DATABASE_CHANNEL_IDS:
-                    async for msg in event.client.iter_messages(channel_id, search=file_name, limit=1):
-                        if msg.media:
-                            await event.client.send_file(event.chat_id, msg.media, caption=f"🎬 `{file_name}`{watermark}")
-                            found = True
-                            break
-                    if found:
-                        break
-                if not found:
-                    await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be found in the vault(s).")
-            elif file_id:
+            sent = False
+            
+            # 1. Try by exact message_id and chat_id (Fastest & Most Reliable)
+            if msg_id and chat_id:
                 try:
-                    await event.client.send_file(event.chat_id, file_id, caption=f"🎬 `{file_name}`{watermark}")
-                except Exception as file_e:
-                    logger.error(f"Could not send by file_id: {file_e}")
-                    await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be sent directly via Userbot.")
-            else:
-                msg_id = movie.get('message_id')
-                chat_id = movie.get('chat_id')
-                if msg_id and chat_id:
                     msg = await event.client.get_messages(chat_id, ids=msg_id)
                     if msg and msg.media:
                         await event.client.send_file(event.chat_id, msg.media, caption=f"🎬 `{file_name}`{watermark}")
+                        sent = True
+                except Exception as e:
+                    logger.error(f"Failed to fetch by ID: {e}")
+                    
+            # 2. Try by file_id
+            if not sent and file_id:
+                try:
+                    await event.client.send_file(event.chat_id, file_id, caption=f"🎬 `{file_name}`{watermark}")
+                    sent = True
+                except Exception as file_e:
+                    logger.error(f"Could not send by file_id: {file_e}")
+                    
+            # 3. Fallback to searching the channels by text
+            if not sent and DATABASE_CHANNEL_IDS:
+                for channel_id in DATABASE_CHANNEL_IDS:
+                    try:
+                        async for msg in event.client.iter_messages(channel_id, search=file_name, limit=1):
+                            if msg.media:
+                                await event.client.send_file(event.chat_id, msg.media, caption=f"🎬 `{file_name}`{watermark}")
+                                sent = True
+                                break
+                    except Exception as iter_e:
+                        logger.error(f"Error searching channel {channel_id}: {iter_e}")
+                    if sent:
+                        break
+                        
+            if not sent:
+                await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be downloaded from the vault.")
         except Exception as e:
             logger.error(f"Failed to send movie file: {e}")
 
