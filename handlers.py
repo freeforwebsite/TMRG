@@ -168,6 +168,52 @@ async def handle_movie_request(event):
         return
 
     user_id = event.sender_id
+    query = event.raw_text.strip()
+    
+    if not query:
+        return
+        
+    # Admin command to index a channel
+    if query.startswith("!index"):
+        parts = query.split()
+        if len(parts) < 2:
+            await event.client.send_message(event.chat_id, "⚠️ Usage: `!index @username` or `!index -100...`")
+            return
+        target_input = parts[1]
+        try:
+            target_channel = int(target_input)
+        except ValueError:
+            target_channel = target_input
+            
+        status_msg = await event.client.send_message(event.chat_id, f"⏳ Starting to index {target_channel}...")
+        
+        from database import movies_col
+        added = 0
+        skipped = 0
+        try:
+            async for msg in event.client.iter_messages(target_channel):
+                if msg.document or msg.video:
+                    media = msg.document or msg.video
+                    file_name = getattr(media, "file_name", "Unknown")
+                    real_chat_id = msg.chat_id
+                    
+                    if not movies_col.find_one({"message_id": msg.id, "chat_id": real_chat_id}):
+                        movies_col.insert_one({
+                            "file_id": media.file_id,
+                            "file_name": file_name,
+                            "message_id": msg.id,
+                            "chat_id": real_chat_id,
+                            "file_size": getattr(media, "size", 0)
+                        })
+                        added += 1
+                    else:
+                        skipped += 1
+                        
+            await status_msg.edit(f"✅ **Indexing Complete!**\n\nAdded: `{added}` new movies\nSkipped: `{skipped}` duplicates")
+        except Exception as e:
+            await status_msg.edit(f"❌ **Error indexing channel:** `{e}`")
+        return
+
     current_time = time.time()
     
     if user_id in user_cooldowns:
@@ -175,7 +221,6 @@ async def handle_movie_request(event):
             return
             
     user_cooldowns[user_id] = current_time
-    query = event.raw_text.strip()
     if len(query) < 2:
         return
         
