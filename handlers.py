@@ -248,6 +248,12 @@ async def handle_movie_request(event):
         raw_matches = await search_movies_db(query)
         tmdb_data = await search_tmdb(title=query)
         
+        # If user spelled it wrong, use TMDB's corrected spelling to try again!
+        if not raw_matches and tmdb_data and tmdb_data.get('title'):
+            corrected_query = tmdb_data['title']
+            if corrected_query.lower() != query.lower():
+                raw_matches = await search_movies_db(corrected_query)
+        
         matches = filter_accurate_matches(query, raw_matches, tmdb_data)
         
         if matches:
