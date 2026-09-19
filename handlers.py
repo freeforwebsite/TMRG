@@ -256,12 +256,27 @@ async def handle_movie_request(event):
                 
         # 2. GEMINI AI Auto-Correct (The Ultimate Brain)
         import os
-        gemini_key = os.getenv("GEMINI_API_KEY")
-        if not raw_matches and gemini_key:
+        import random
+        
+        gemini_keys = []
+        for i in range(1, 10):
+            key = os.getenv(f"GEMINI_API_KEY_{i}")
+            if key:
+                gemini_keys.append(key)
+        
+        if not gemini_keys and os.getenv("GEMINI_API_KEY"):
+            gemini_keys.append(os.getenv("GEMINI_API_KEY"))
+            
+        ai_model_name = os.getenv("AI_MODEL", "gemini-1.5-flash")
+        
+        if not raw_matches and gemini_keys:
             try:
                 import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                # Pick a random key to distribute load and avoid rate limits
+                selected_key = random.choice(gemini_keys)
+                genai.configure(api_key=selected_key)
+                
+                model = genai.GenerativeModel(ai_model_name)
                 prompt = f"The user searched for a movie named '{query}'. They likely spelled it wrong (e.g. missing 'h' or 's'). Reply ONLY with the most likely correct spelling of this Indian or Hollywood movie name. Do not add quotes or periods."
                 response = await model.generate_content_async(prompt)
                 ai_corrected = response.text.strip()
