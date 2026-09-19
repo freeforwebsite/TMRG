@@ -151,10 +151,9 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data, page=1):
             logger.error(f"Failed to send movie file: {e}")
             
     if len(matches) > 10:
-        next_page = page + 1
         await event.client.send_message(
             event.chat_id,
-            f"**Page {page}**\nThere are more files for this search!\n\n👉 Click here for next page: /next_{next_page}"
+            f"**Page {page}**\nThere are more files for this search!\n\n👉 **Reply** to this message with the word `next` to see the next page!"
         )
 
 async def watch_queue_and_send(query, event, user_id, wait_msg=None):
@@ -203,7 +202,35 @@ async def handle_movie_request(event):
     if not raw_text:
         return
         
-    # Handle pagination command
+    # Handle pagination via reply
+    if raw_text.lower() == "next" and event.is_reply:
+        try:
+            reply_msg = await event.get_reply_message()
+            if reply_msg and reply_msg.sender_id == (await event.client.get_me()).id:
+                import re
+                match = re.search(r"Page (\d+)", reply_msg.text)
+                if match:
+                    current_page = int(match.group(1))
+                    page = current_page + 1
+                    
+                    if user_id in user_search_cache:
+                        matches = user_search_cache[user_id]['matches']
+                        tmdb_data = user_search_cache[user_id]['tmdb_data']
+                        original_query = user_search_cache[user_id]['query']
+                        
+                        start_idx = (page - 1) * 10
+                        
+                        if start_idx < len(matches):
+                            await send_movie_results(matches[start_idx:], event, user_id, original_query, tmdb_data, page=page)
+                        else:
+                            await event.client.send_message(event.chat_id, "⚠️ No more results found on this page.", reply_to=event.id)
+                    else:
+                        await event.client.send_message(event.chat_id, "⚠️ Search session expired. Please search for the movie again.", reply_to=event.id)
+                    return
+        except Exception as e:
+            logger.error(f"Pagination reply error: {e}")
+            
+    # Keep old /next_ command as a hidden fallback just in case
     if raw_text.startswith("/next_"):
         parts = raw_text.split("_")
         if len(parts) >= 2:
