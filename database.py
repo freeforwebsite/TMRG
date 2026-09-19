@@ -30,8 +30,8 @@ async def search_movies_db(query):
     for word in words:
         conditions.append({"file_name": {"$regex": rf"\b{word}\b", "$options": "i"}})
         
-    cursor = movies_col.find({"$and": conditions}).limit(15)
-    results = await cursor.to_list(length=15)
+    cursor = movies_col.find({"$and": conditions}).limit(50)
+    results = await cursor.to_list(length=50)
     
     # If no results found, use difflib to find spelling mistakes!
     if not results:

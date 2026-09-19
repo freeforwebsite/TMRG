@@ -60,7 +60,17 @@ def filter_accurate_matches(query, matches, tmdb_data):
     scored_matches.sort(key=lambda x: x['score'], reverse=True)
     return [x['movie'] for x in scored_matches]
 
-async def send_movie_results(matches, event, user_id, query, tmdb_data):
+async def send_movie_results(matches, event, user_id, query, tmdb_data, page=1):
+    logger.info(f"Sending {len(matches)} results to {user_id}")
+    
+    # Cache the original full list of matches for this user to support pagination
+    if page == 1:
+        user_search_cache[user_id] = {
+            'matches': matches,
+            'tmdb_data': tmdb_data,
+            'query': query
+        }
+        
     sender = event.sender
     first_name = getattr(sender, 'first_name', "User") if sender else "User"
     user_mention = f"[{first_name}](tg://user?id={user_id})"
@@ -136,6 +146,13 @@ async def send_movie_results(matches, event, user_id, query, tmdb_data):
                 await event.client.send_message(event.chat_id, message=f"⚠️ `{file_name}` is in the database but could not be downloaded from the vault.")
         except Exception as e:
             logger.error(f"Failed to send movie file: {e}")
+            
+    if len(matches) > 10:
+        next_page = page + 1
+        await event.client.send_message(
+            event.chat_id,
+            f"**Page {page}**\nThere are more files for this search!\n\n👉 Click here for next page: /next_{next_page}"
+        )
 
 async def watch_queue_and_send(query, event, user_id, wait_msg=None):
     logger.info(f"Actively watching queue for: {query}")
@@ -177,15 +194,40 @@ async def handle_movie_request(event):
     if event.chat_id != TARGET_GROUP_ID:
         return
 
-    if event.raw_text.startswith('/'):
-        return
-
     user_id = event.sender_id
-    query = event.raw_text.strip()
+    raw_text = event.raw_text.strip()
     
-    if not query:
+    if not raw_text:
         return
         
+    # Handle pagination command
+    if raw_text.startswith("/next_"):
+        parts = raw_text.split("_")
+        if len(parts) >= 2:
+            try:
+                page = int(parts[1])
+                if user_id in user_search_cache:
+                    matches = user_search_cache[user_id]['matches']
+                    tmdb_data = user_search_cache[user_id]['tmdb_data']
+                    original_query = user_search_cache[user_id]['query']
+                    
+                    start_idx = (page - 1) * 10
+                    
+                    if start_idx < len(matches):
+                        await send_movie_results(matches[start_idx:], event, user_id, original_query, tmdb_data, page=page)
+                    else:
+                        await event.client.send_message(event.chat_id, "⚠️ No more results found on this page.", reply_to=event.id)
+                else:
+                    await event.client.send_message(event.chat_id, "⚠️ Search session expired. Please search for the movie again.", reply_to=event.id)
+            except ValueError:
+                pass
+        return
+
+    if raw_text.startswith('/'):
+        return
+
+    query = raw_text
+    
     # Admin command to index a channel
     if query.startswith("!index"):
         parts = query.split()
