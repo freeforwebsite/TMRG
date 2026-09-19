@@ -248,11 +248,28 @@ async def handle_movie_request(event):
         raw_matches = await search_movies_db(query)
         tmdb_data = await search_tmdb(title=query)
         
-        # If user spelled it wrong, use TMDB's corrected spelling to try again!
+        # 1. TMDB Auto-Correct
         if not raw_matches and tmdb_data and tmdb_data.get('title'):
             corrected_query = tmdb_data['title']
             if corrected_query.lower() != query.lower():
                 raw_matches = await search_movies_db(corrected_query)
+                
+        # 2. GEMINI AI Auto-Correct (The Ultimate Brain)
+        import os
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if not raw_matches and gemini_key:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                prompt = f"The user searched for a movie named '{query}'. They likely spelled it wrong (e.g. missing 'h' or 's'). Reply ONLY with the most likely correct spelling of this Indian or Hollywood movie name. Do not add quotes or periods."
+                response = await model.generate_content_async(prompt)
+                ai_corrected = response.text.strip()
+                
+                if ai_corrected and ai_corrected.lower() != query.lower():
+                    raw_matches = await search_movies_db(ai_corrected)
+            except Exception as e:
+                logger.error(f"Gemini API Error: {e}")
         
         matches = filter_accurate_matches(query, raw_matches, tmdb_data)
         
