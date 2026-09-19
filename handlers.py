@@ -6,15 +6,59 @@ from config import TARGET_GROUP_ID, DATABASE_CHANNEL_ID, logger
 from tmdb import search_tmdb
 from database import add_to_queue, check_queue_status, increment_stat, search_movies_db
 
+import re
+
 user_cooldowns = {}
 COOLDOWN_SECONDS = 5
 
-async def send_movie_results(matches, event, user_id, query):
+def filter_accurate_matches(query, matches, tmdb_data):
+    if not matches:
+        return []
+        
+    q_words = re.findall(r'[a-zA-Z0-9]+', query.lower())
+    if not q_words:
+        return matches
+        
+    expected_year = None
+    if tmdb_data and tmdb_data.get('release_date'):
+        match = re.search(r'\d{4}', tmdb_data['release_date'])
+        if match:
+            expected_year = match.group(0)
+            
+    scored_matches = []
+    
+    for movie in matches:
+        file_name = movie.get('file_name', '').lower()
+        score = 0
+        
+        words = re.findall(r'[a-zA-Z0-9]+', file_name)
+        
+        # 1. HUGE boost if the requested movie is in the first 4 words of the filename
+        # (This ignores uploader tags like [MW] or @TeamHDT, but rejects files where the query is hidden at the end)
+        if q_words[0] in words[:5]:
+            score += 50
+            
+        # 2. HUGE boost if the TMDB release year matches a year in the filename
+        years_in_file = set(re.findall(r'\b(19\d{2}|20\d{2})\b', file_name))
+        if expected_year:
+            if expected_year in years_in_file:
+                score += 50
+            elif years_in_file:
+                # If there are years in the filename, but none match TMDB, strongly penalize!
+                # (e.g., TMDB expects 2023, but file says "Blast 2026")
+                score -= 100
+                
+        # If the file passed the checks (score > 0) or if we had no strict criteria, keep it
+        if score > 0 or (score == 0 and not expected_year):
+            scored_matches.append({'movie': movie, 'score': score})
+            
+    # Sort highest score first
+    scored_matches.sort(key=lambda x: x['score'], reverse=True)
+    return [x['movie'] for x in scored_matches]
+
+async def send_movie_results(matches, event, user_id, query, tmdb_data):
     user = await event.client.get_entity(user_id)
     user_mention = f"[{user.first_name}](tg://user?id={user_id})"
-    
-    # We use the user's original query to fetch TMDB
-    tmdb_data = await search_tmdb(title=query)
     
     if tmdb_data and tmdb_data.get('poster_url'):
         caption = (f"╭━━━ 🎬 **Search Results** ━━━\n"
@@ -76,9 +120,14 @@ async def watch_queue_and_send(query, event, user_id):
         if status == 'completed':
             logger.info(f"Scraper completed {query}! Sending to group...")
             await asyncio.sleep(2) # Give it a moment to ensure files are indexed
-            matches = await search_movies_db(query)
+            
+            raw_matches = await search_movies_db(query)
+            tmdb_data = await search_tmdb(title=query)
+            
+            matches = filter_accurate_matches(query, raw_matches, tmdb_data)
+            
             if matches:
-                await send_movie_results(matches, event, user_id, query)
+                await send_movie_results(matches, event, user_id, query, tmdb_data)
             return
         elif status == 'failed':
             logger.info(f"Scraper failed for {query}")
@@ -112,10 +161,13 @@ async def handle_movie_request(event):
     await increment_stat("total_requested")
     
     try:
-        matches = await search_movies_db(query)
+        raw_matches = await search_movies_db(query)
+        tmdb_data = await search_tmdb(title=query)
+        
+        matches = filter_accurate_matches(query, raw_matches, tmdb_data)
         
         if matches:
-            await send_movie_results(matches, event, user_id, query)
+            await send_movie_results(matches, event, user_id, query, tmdb_data)
         else:
             await add_to_queue(query)
             asyncio.create_task(watch_queue_and_send(query, event, user_id))
