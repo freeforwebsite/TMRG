@@ -15,8 +15,8 @@ async def init_db():
 
 async def search_movies_db(query):
     # Regex search on file_name
-    cursor = movies_col.find({"file_name": {"$regex": query, "$options": "i"}}).limit(50)
-    return await cursor.to_list(length=50)
+    cursor = movies_col.find({"file_name": {"$regex": query, "$options": "i"}}).limit(200)
+    return await cursor.to_list(length=200)
 
 async def add_to_queue(movie_name):
     # Check if already pending

@@ -22,13 +22,22 @@ async def search_movies(query, threshold=60):
     for movie in db_movies:
         file_name = movie.get('file_name', '')
         
-        # Calculate similarity ratio using Python's built-in difflib instead of thefuzz
+        # Calculate similarity ratio using Python's built-in difflib
         ratio = difflib.SequenceMatcher(None, normalized_query, normalize_title(file_name)).ratio()
         score = int(ratio * 100)
         
-        # Boost score if it's a direct substring match
-        if normalized_query in normalize_title(file_name):
-            score = max(score, 85)
+        norm_file = normalize_title(file_name)
+        
+        # 1. Huge boost if the query is an exact standalone word in the filename
+        if normalized_query in norm_file.split():
+            score = max(score, 95)
+        # 2. Medium boost if it's a substring, but ONLY if the query is at least 4 letters long
+        elif normalized_query in norm_file:
+            if len(normalized_query) >= 4:
+                score = max(score, 80)
+            else:
+                # If it's a tiny 3-letter word (like 'leo') hidden inside another word (like 'harmeLeon'), do not boost heavily
+                score = max(score, 65)
             
         if score >= threshold:
             results.append({'movie': movie, 'score': score})
