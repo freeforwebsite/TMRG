@@ -36,10 +36,11 @@ async def add_to_queue(movie_name):
         doc = {
             "movie_name": movie_name,
             "status": "pending",
-            "force": True
+            "force": True,
+            "is_urgent": True
         }
         await queue_col.insert_one(doc)
-        logger.info(f"Added {movie_name} to queue_v2")
+        logger.info(f"Added {movie_name} to urgent scrape queue")
 
 async def check_queue_status(movie_name):
     doc = await queue_col.find_one({"movie_name": movie_name}, sort=[("_id", -1)])
