@@ -96,16 +96,18 @@ async def handle_movie_request(event):
     if len(query) < 2:
         return
         
+    # Prevent the bot from replying to its own automated responses
+    if query.startswith('🎬') or query.startswith('📁') or query.startswith('⚠️'):
+        return
+        
     logger.info(f"Processing request from {user_id}: {query}")
     
     try:
         matches = await search_movies(query)
         
         if matches:
-            # 1. Movie found -> Send instantly and tag person
             await send_movie_results(matches, event, user_id, query)
         else:
-            # 2. Movie not found -> No reply, add to queue, actively watch
             await add_to_queue(query)
             asyncio.create_task(watch_queue_and_send(query, event, user_id))
                     
@@ -116,4 +118,5 @@ async def handle_movie_request(event):
         logger.error(f"Error handling request: {e}")
 
 def register_user_handlers(client):
-    client.add_event_handler(handle_movie_request, events.NewMessage(incoming=True, chats=TARGET_GROUP_ID))
+    # Removed incoming=True so it can process messages you type yourself!
+    client.add_event_handler(handle_movie_request, events.NewMessage(chats=TARGET_GROUP_ID))
