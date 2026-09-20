@@ -2,7 +2,7 @@ import asyncio
 import time
 from telethon import events
 from telethon.errors import FloodWaitError
-from config import TARGET_GROUP_ID, DATABASE_CHANNEL_IDS, logger, WATERMARK_ID
+from config import TARGET_GROUP_ID, DATABASE_CHANNEL_IDS, logger, WATERMARK_ID, ADMIN_IDS
 from tmdb import search_tmdb
 from database import add_to_queue, check_queue_status, increment_stat, search_movies_db
 
