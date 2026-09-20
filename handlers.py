@@ -12,6 +12,8 @@ import re
 user_cooldowns = {}
 # Dictionary to store search sessions for pagination
 user_search_cache = {}
+# Global flag to control if the bot is actively processing requests
+BOT_IS_ACTIVE = True
 COOLDOWN_SECONDS = 5
 
 def filter_accurate_matches(query, matches, tmdb_data):
@@ -193,6 +195,9 @@ async def watch_queue_and_send(query, event, user_id, wait_msg=None):
             return
 
 async def handle_movie_request(event):
+    global BOT_IS_ACTIVE
+    
+    # Only listen to the target group
     if event.chat_id != TARGET_GROUP_ID:
         return
 
@@ -200,6 +205,26 @@ async def handle_movie_request(event):
     raw_text = event.raw_text.strip()
     
     if not raw_text:
+        return
+        
+    # Admin commands to pause/start the bot manually
+    try:
+        me = await event.client.get_me()
+        is_admin = (str(user_id) in ADMIN_IDS) or (user_id == me.id)
+        
+        if raw_text.lower() == "!pause" and is_admin:
+            BOT_IS_ACTIVE = False
+            await event.client.send_message(event.chat_id, "⏸️ **Bot Paused**\nThe bot is now sleeping and will ignore all movie requests.", reply_to=event.id)
+            return
+            
+        if raw_text.lower() == "!start" and is_admin:
+            BOT_IS_ACTIVE = True
+            await event.client.send_message(event.chat_id, "▶️ **Bot Resumed**\nThe bot is back online and listening for requests!", reply_to=event.id)
+            return
+    except Exception as e:
+        logger.error(f"Admin check error: {e}")
+        
+    if not BOT_IS_ACTIVE:
         return
         
     # Handle pagination via reply
