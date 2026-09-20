@@ -14,12 +14,6 @@ async def init_db():
     logger.info("MongoDB initialized.")
 import re
 
-import difflib
-
-# Memory cache for fuzzy searching
-_movie_cache = []
-_movie_cache_time = 0
-
 async def search_movies_db(query):
     # Try exact match first
     words = re.findall(r'[a-zA-Z0-9]+', query)
@@ -33,24 +27,6 @@ async def search_movies_db(query):
     cursor = movies_col.find({"$and": conditions}).limit(50)
     results = await cursor.to_list(length=50)
     
-    # If no results found, use difflib to find spelling mistakes!
-    if not results:
-        global _movie_cache, _movie_cache_time
-        import time
-        # Refresh cache every hour
-        if not _movie_cache or (time.time() - _movie_cache_time) > 3600:
-            cursor = movies_col.find({}, {"file_name": 1})
-            _movie_cache = [doc['file_name'] async for doc in cursor if 'file_name' in doc]
-            _movie_cache_time = time.time()
-            
-        # Get closest string matches
-        # Increased cutoff to 0.7 to prevent completely random movies from matching
-        close_names = difflib.get_close_matches(query, _movie_cache, n=10, cutoff=0.7)
-        
-        if close_names:
-            cursor = movies_col.find({"file_name": {"$in": close_names}}).limit(10)
-            results = await cursor.to_list(length=10)
-            
     return results
 
 async def add_to_queue(movie_name):
