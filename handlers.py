@@ -14,6 +14,7 @@ user_cooldowns = {}
 user_search_cache = {}
 # Global flag to control if the bot is actively processing requests
 BOT_IS_ACTIVE = True
+BOT_OWNER_ID = None
 COOLDOWN_SECONDS = 5
 
 def filter_accurate_matches(query, matches, tmdb_data):
@@ -195,7 +196,7 @@ async def watch_queue_and_send(query, event, user_id, wait_msg=None):
             return
 
 async def handle_movie_request(event):
-    global BOT_IS_ACTIVE
+    global BOT_IS_ACTIVE, BOT_OWNER_ID
     
     # Only listen to the target group
     if event.chat_id != TARGET_GROUP_ID:
@@ -209,8 +210,11 @@ async def handle_movie_request(event):
         
     # Admin commands to pause/start the bot manually
     try:
-        me = await event.client.get_me()
-        is_admin = (str(user_id) in ADMIN_IDS) or (user_id == me.id)
+        if BOT_OWNER_ID is None:
+            me = await event.client.get_me()
+            BOT_OWNER_ID = me.id
+            
+        is_admin = (str(user_id) in ADMIN_IDS) or (user_id == BOT_OWNER_ID)
         
         if raw_text.lower() == "!pause" and is_admin:
             BOT_IS_ACTIVE = False
