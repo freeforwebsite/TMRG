@@ -44,8 +44,8 @@ async def search_movies_db(query):
             _movie_cache_time = time.time()
             
         # Get closest string matches
-        # Using cutoff=0.3 to allow partial matches (e.g. 'viswanath' vs 'Vishwanath and Sons...')
-        close_names = difflib.get_close_matches(query, _movie_cache, n=10, cutoff=0.3)
+        # Increased cutoff to 0.7 to prevent completely random movies from matching
+        close_names = difflib.get_close_matches(query, _movie_cache, n=10, cutoff=0.7)
         
         if close_names:
             cursor = movies_col.find({"file_name": {"$in": close_names}}).limit(10)
